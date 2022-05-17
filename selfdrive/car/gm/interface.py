@@ -15,6 +15,7 @@ EventName = car.CarEvent.EventName
 class CarInterface(CarInterfaceBase):
   def __init__(self, CP, CarController, CarState):
     super().__init__(CP, CarController, CarState)
+    self.keep_Lat_When_Brake = Params().get_bool('KeepLatWhenBrake')
 
 
   def _update(self, c: car.CarControl) -> car.CarState:
@@ -86,8 +87,8 @@ class CarInterface(CarInterfaceBase):
     tire_stiffness_factor = 0.5
 
     ret.minSteerSpeed = 11 * CV.KPH_TO_MS
-    ret.steerRateCost = 0.3625 # def : 2.0
-    ret.steerActuatorDelay = 0.1925  # def: 0.2 Default delay, not measured yet
+    ret.steerRateCost = 0.35 # def : 2.0
+    ret.steerActuatorDelay = 0.2  # def: 0.2 Default delay, not measured yet
 
     ret.minEnableSpeed = -1
     ret.mass = 1625. + STD_CARGO_KG
@@ -124,14 +125,14 @@ class CarInterface(CarInterfaceBase):
     else:
       ret.lateralTuning.init('torque')
       ret.lateralTuning.torque.useSteeringAngle = True
-      max_lat_accel = 3.0
+      max_lat_accel = 2.15
       ret.lateralTuning.torque.kp = 2.0 / max_lat_accel
       ret.lateralTuning.torque.kf = 1.0 / max_lat_accel
-      ret.lateralTuning.torque.ki = 0.5 / max_lat_accel
-      ret.lateralTuning.torque.friction = 0.2
+      ret.lateralTuning.torque.ki = 0.2 / max_lat_accel
+      ret.lateralTuning.torque.friction = 0.02
 
-      ret.lateralTuning.torque.kd = 0.0
-      ret.lateralTuning.torque.deadzone = 0.0
+      ret.lateralTuning.torque.kd = 1.0
+      ret.lateralTuning.torque.deadzone = 0.01
 
 
     # TODO: get actual value, for now starting with reasonable value for
@@ -215,7 +216,10 @@ class CarInterface(CarInterfaceBase):
     #   events.add(car.CarEvent.EventName.belowSteerSpeed)
     if self.CP.enableGasInterceptor:
       if ret.cruiseState.enabled and ret.brakePressed:
-        events.add(EventName.pedalPressed)
+        if self.keep_Lat_When_Brake and not self.CS.adaptive_Cruise and self.CS.enable_lkas : # KeepLatWhenBrake things.
+          pass
+        else :
+          events.add(EventName.pedalPressed)
         self.CS.adaptive_Cruise = False
         self.CS.enable_lkas = True
 
@@ -257,7 +261,7 @@ class CarInterface(CarInterfaceBase):
       if self.CS.main_on: #wihtout pedal case
         self.CS.adaptive_Cruise = False
         self.CS.enable_lkas = True
-        if ret.brakePressed :
+        if ret.brakePressed and not self.keep_Lat_When_Brake: # KeepLatWhenBrake things.
           self.CS.enable_lkas = False
           events.add(EventName.pedalPressed)
 
