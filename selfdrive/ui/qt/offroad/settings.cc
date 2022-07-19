@@ -650,16 +650,16 @@ CommunityPanel::CommunityPanel(QWidget* parent) : QWidget(parent) {
                                             "../assets/offroad/icon_road.png",
                                             this));
 
-  toggles.append(new ParamControl("LongControlEnabled",
-                                            "롱컨트롤 사용",
-                                            "경고 : 오픈파일럿이 속도를 조절합니다. 주의 하시길 바랍니다.",
+  toggles.append(new ParamControl("CommaPedal",
+                                            "컴마 패달 사용",
+                                            "경고 : 베타이기 때문에 조심히 사용하세요! 오픈파일럿의 차량의 속도를 조절합니다.",
                                             "../assets/offroad/icon_road.png",
                                             this));
 
-  toggles.append(new ParamControl("MadModeEnabled",
-                                            "매드모드 사용",
-                                            "HKG 매드모드 사용. 가감속을 사용 하지 않아도 핸들 조향을 사용합니다.",
-                                            "../assets/offroad/icon_openpilot.png",
+  toggles.append(new ParamControl("RestartForceAccel",
+                                            "Use Restart Force Accel",
+                                            "경고 : 베타이기 때문에 조심히 사용하세요! 선두차로 재시동시 강제가속",
+                                            "../assets/offroad/icon_road.png",
                                             this));
 
 //  toggles.append(new ParamControl("LongControlEnabled",
@@ -673,6 +673,13 @@ CommunityPanel::CommunityPanel(QWidget* parent) : QWidget(parent) {
 //                                            "Openpilot will engage when turn cruise control on",
 //                                            "../assets/offroad/icon_openpilot.png",
 //                                            this));
+
+  toggles.append(new ParamControl("KeepLatWhenBrake",
+                                            "Keep Lat control with Brakes",
+                                            "Brake will not disengage with this toggle",
+                                            "../assets/offroad/icon_openpilot.png",
+                                            this));
+
 
 //  toggles.append(new ParamControl("IsLdwsCar",
 //                                            "LDWS",
@@ -704,22 +711,22 @@ CommunityPanel::CommunityPanel(QWidget* parent) : QWidget(parent) {
                                             "../assets/offroad/icon_road.png",
                                             this));
 
-  toggles.append(new ParamControl("StockNaviDecelEnabled",
-                                            "Stock Navi based deceleration",
-                                            "Use the stock navi based deceleration for longcontrol",
-                                            "../assets/offroad/icon_road.png",
-                                            this));
+//  toggles.append(new ParamControl("StockNaviDecelEnabled",
+//                                            "Stock Navi based deceleration",
+//                                            "Use the stock navi based deceleration for longcontrol",
+//                                            "../assets/offroad/icon_road.png",
+//                                            this));
 
-  toggles.append(new ParamControl("KeepSteeringTurnSignals",
-                                            "방향지시등 작동시 조향 일시해제",
-                                            "",
-                                            "../assets/offroad/icon_openpilot.png",
-                                            this));
-  toggles.append(new ParamControl("HapticFeedbackWhenSpeedCamera",
-                                            "Haptic feedback (speed-cam alert)",
-                                            "Haptic feedback when a speed camera is detected",
-                                            "../assets/offroad/icon_openpilot.png",
-                                            this));
+//  toggles.append(new ParamControl("KeepSteeringTurnSignals",
+//                                            "Keep steering while turn signals",
+//                                            "",
+//                                            "../assets/offroad/icon_openpilot.png",
+//                                            this));
+//  toggles.append(new ParamControl("HapticFeedbackWhenSpeedCamera",
+//                                            "Haptic feedback (speed-cam alert)",
+//                                            "Haptic feedback when a speed camera is detected",
+//                                            "../assets/offroad/icon_openpilot.png",
+//                                            this));
 
   /*toggles.append(new ParamControl("NewRadarInterface",
                                             "Use new radar interface",
@@ -822,7 +829,7 @@ LateralControl::LateralControl(QWidget* parent): QWidget(parent) {
   QScroller::grabGesture(list->viewport(), QScroller::LeftMouseButtonGesture);
   list->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
 
-  QStringList items = {"TORQUE", "LQR", "INDI"};
+  QStringList items = {"TORQUE", "LQR", "INDI", "PID"};
   list->addItems(items);
   list->setCurrentRow(0);
 
