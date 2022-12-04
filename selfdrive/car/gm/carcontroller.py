@@ -8,14 +8,30 @@ from selfdrive.car.gm.values import DBC, CanBus, CarControllerParams
 from opendbc.can.packer import CANPacker
 from selfdrive.car.hyundai.scc_smoother import SccSmoother
 from selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import STOP_DISTANCE
+import math
 
 min_set_speed = 30 * CV.KPH_TO_MS
 VisualAlert = car.CarControl.HUDControl.VisualAlert
 LongCtrlState = car.CarControl.Actuators.LongControlState
 
+def actuator_hystereses(final_pedal, pedal_steady, pedal_hyst_gap):
+  # hyst params... TODO: move these to VehicleParams
+  # pedal_hyst_gap = 0.01    # don't change pedal command for small oscillations within this value
+
+  # for small pedal oscillations within pedal_hyst_gap, don't change the pedal command
+  if math.isclose(final_pedal,0.0):
+    pedal_steady = 0.
+  elif final_pedal > pedal_steady + pedal_hyst_gap:
+    pedal_steady = final_pedal - pedal_hyst_gap
+  elif final_pedal < pedal_steady - pedal_hyst_gap:
+    pedal_steady = final_pedal + pedal_hyst_gap
+  final_pedal = pedal_steady
+
+  return final_pedal, pedal_steady
 
 class CarController():
   def __init__(self, dbc_name, CP, VM):
+    self.pedal_steady = 0.
     self.start_time = 0.
     self.apply_steer_last = 0
     self.apply_gas = 0
@@ -47,10 +63,6 @@ class CarController():
     self.pedalAdderClosing = 0
 
     self.pedalMaxValue = 0.3310
-
-
-
-
 
   def update(self,c,  enabled, CS, controls ,  actuators,
              hud_v_cruise, hud_show_lanes, hud_show_car, hud_alert):
@@ -88,20 +100,15 @@ class CarController():
       self.comma_pedal = 0.0 # Must be set by zero, or cannot re-acceling when stopped. - jc01rho.
 
     elif CS.adaptive_Cruise:
-
-      # acc_mult = interp(CS.out.vEgo, [0., 18.0 * CV.KPH_TO_MS, 30* CV.KPH_TO_MS, 40* CV.KPH_TO_MS ], [0.17, 0.24, 0.265, 0.24])
-      accelFomula = (actuators.accel / 8.8 if actuators.accel >=0 else actuators.accel / 9.25 )
+      ConstAccel = interp(CS.out.vEgo, [18.0 * CV.KPH_TO_MS, 100.0 * CV.KPH_TO_MS], [0.17, 0.245])
+      accelFomula = ((actuators.accel-ConstAccel) / 8.0)
       accelFomula = round(accelFomula,3)
-      pedalValue = interp(CS.out.vEgo, [0., 18.0 * CV.KPH_TO_MS], [0.1625, 0.2125]) + accelFomula
-      pedalValue = min(pedalValue, interp(CS.out.vEgo, [0., 19.0 * CV.KPH_TO_MS, 30.0 * CV.KPH_TO_MS], [0.2550, 0.2750, 0.3150]) )
-
-      self.comma_pedal_original = pedalValue # (actuators.accel * acc_mult, 0., 1.)
-      self.comma_pedal_new = clip (interp(actuators.accel, [-0.725, -0.315, 0.00, 0.20], [0.0, 0.1575, 0.2190, 0.22150]) + accelFomula , 0., 1.)
-
-      gapInterP = interp(CS.out.vEgo, [19 * CV.KPH_TO_MS, 45*CV.KPH_TO_MS], [1, 0])
-      self.comma_pedal =  (gapInterP * self.comma_pedal_original)  +  ((1.0-gapInterP) * self.comma_pedal_new)
-
-      self.comma_pedal = clip(self.comma_pedal, 0.0, interp(actuators.accel, [0.85, 1.5], [0.0000, 0.0200]) + self.pedalMaxValue) #급가속 방
+      
+      self.comma_pedal_original = clip (interp(actuators.accel, [-0.775, 0.00, 0.20], [0.0, ConstAccel, ConstAccel + 0.0125]) + accelFomula , 0., 1.)
+      
+      self.pedal_hyst_gap = interp(CS.out.vEgo, [40.0 * CV.KPH_TO_MS, 100.0 * CV.KPH_TO_MS], [0.01, 0.006])
+      self.pedal_final, self.pedal_steady = actuator_hystereses(self.comma_pedal_original, self.pedal_steady, self.pedal_hyst_gap)
+      self.comma_pedal = clip(self.pedal_final, 0., 1.)
 
       actuators.commaPedalOrigin = self.comma_pedal
 
@@ -163,10 +170,11 @@ class CarController():
           self.comma_pedal = clip(self.comma_pedal, 0.0 , (self.pedalMaxValue -0.025))
 
       #braking logic
-      if actuators.accel < -0.15 :
+      if actuators.accel < interp(CS.out.vEgo,[18.0* CV.KPH_TO_MS, 100.0* CV.KPH_TO_MS],[-0.15, -0.5]) :
+      #if actuators.accel < -0.15 :
         can_sends.append(gmcan.create_regen_paddle_command(self.packer_pt, CanBus.POWERTRAIN))
         actuators.regenPaddle = True #for icon
-      elif controls.LoC.pid.f < - 0.55 :
+      elif controls.LoC.pid.f < - 0.95 :
         can_sends.append(gmcan.create_regen_paddle_command(self.packer_pt, CanBus.POWERTRAIN))
         actuators.regenPaddle = True #for icon
         minMultipiler = interp(CS.out.vEgo, [20 * CV.KPH_TO_MS ,  30 * CV.KPH_TO_MS , 60 * CV.KPH_TO_MS ,120 * CV.KPH_TO_MS ], [0.850, 0.750, 0.625, 0.150])
@@ -241,7 +249,5 @@ class CarController():
 
         controls.sccStockCamAct = 0
         controls.sccStockCamStatus = 0
-
-
 
 
